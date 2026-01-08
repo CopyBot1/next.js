@@ -280,6 +280,12 @@ export interface ExperimentalConfig {
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   /**
+   * Custom header name to use for CDN cache control instead of the default
+   * 'CDN-Cache-Control'. This can be used to target specific CDN providers
+   * that do not support `CDN-Cache-Control` and have their own custom header.
+   */
+  cdnCacheControlHeader?: string
+  /**
    * The origins that are allowed to write the rewritten headers when
    * performing a non-relative rewrite. When undefined, no non-relative
    * rewrites will get the rewrite headers.
@@ -653,6 +659,14 @@ export interface ExperimentalConfig {
   }
 
   /**
+   * Allows adjusting the maximum size of the postponed state body for PPR
+   * resume requests. This includes the Resume Data Cache (RDC) which may grow
+   * large for some applications.
+   * @default '100 MB'
+   */
+  maxPostponedStateSize?: SizeLimit
+
+  /**
    * enables the minification of server code.
    */
   serverMinification?: boolean
@@ -859,6 +873,18 @@ export interface ExperimentalConfig {
    * @default false
    */
   runtimeServerDeploymentId?: boolean
+
+  /**
+   * Use 'no-cache' instead of 'no-store' in the Cache-Control header for development.
+   * This allows conditional requests to the server, which can help with development
+   * workflows that benefit from caching validation.
+   *
+   * When enabled, the Cache-Control header changes from 'no-store, must-revalidate'
+   * to 'no-cache, must-revalidate'.
+   *
+   * @default false
+   */
+  devCacheControlNoCache?: boolean
 }
 
 export type ExportPathMap = {
@@ -1507,6 +1533,7 @@ export const defaultConfig = Object.freeze({
     serverMinification: true,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
+    cdnCacheControlHeader: undefined,
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
     preloadEntriesOnStart: true,
@@ -1584,6 +1611,7 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: false,
     turbopackInferModuleSideEffects: !isStableBuild(),
+    devCacheControlNoCache: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
@@ -1655,6 +1683,7 @@ export interface NextConfigRuntime {
     | 'clientParamParsingOrigins'
     | 'adapterPath'
     | 'allowedRevalidateHeaderKeys'
+    | 'cdnCacheControlHeader'
     | 'fetchCacheKeyPrefix'
     | 'isrFlushToDisk'
     | 'optimizeCss'
@@ -1678,6 +1707,8 @@ export interface NextConfigRuntime {
     | 'proxyTimeout'
     | 'testProxy'
     | 'runtimeServerDeploymentId'
+    | 'maxPostponedStateSize'
+    | 'devCacheControlNoCache'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1709,6 +1740,7 @@ export function getNextConfigRuntime(
         clientParamParsingOrigins: ex.clientParamParsingOrigins,
         adapterPath: ex.adapterPath,
         allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
+        cdnCacheControlHeader: ex.cdnCacheControlHeader,
         fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
         isrFlushToDisk: ex.isrFlushToDisk,
         optimizeCss: ex.optimizeCss,
@@ -1733,6 +1765,8 @@ export function getNextConfigRuntime(
         proxyTimeout: ex.proxyTimeout,
         testProxy: ex.testProxy,
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
+        maxPostponedStateSize: ex.maxPostponedStateSize,
+        devCacheControlNoCache: ex.devCacheControlNoCache,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,
@@ -1780,3 +1814,9 @@ export function getNextConfigRuntime(
 
   return runtimeConfig
 }
+
+// Re-export from shared lib for backwards compatibility
+export {
+  DEFAULT_MAX_POSTPONED_STATE_SIZE,
+  parseMaxPostponedStateSize,
+} from '../shared/lib/size-limit'
